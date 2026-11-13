@@ -1,0 +1,37 @@
+{
+  "name": "qryptive-automation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:qa": "ENV=qa playwright test",
+    "test:staging": "ENV=staging playwright test",
+    "test:production": "ENV=production playwright test",
+    "test:failed": "playwright test --last-failed",
+    "report": "playwright show-report reports",
+    "db": "tsx database/setup.ts",
+    "db:migrate": "tsx database/setup.ts migrate",
+    "db:runs": "tsx database/setup.ts runs",
+    "db:cases": "tsx database/setup.ts cases",
+    "db:failures": "tsx database/setup.ts failures",
+    "db:durations": "tsx database/setup.ts durations",
+    "db:stats": "tsx database/setup.ts stats"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/mailparser": "^3.9.0",
+    "@types/node": "^26.6.6",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "imapflow": "^2.11.0",
+    "mailparser": "^3.14.3",
+    "nodemailer": "^10.5.0",
+    "pg": "^8.23.1",
+    "yaml": "^2.9.1"
+  }
+}

@@ -1,0 +1,24 @@
+# All environments in ONE file.
+# Choose one when running:  ENV=qa npx playwright test
+# TODO: QA and Staging use the same URL as Production for now.
+#       Change them when you get the real QA / Staging URLs.
+
+# dashboardPath "/" = after login the app opens https://app.qryptive.ai/
+
+qa:
+  name: QA
+  baseUrl: https://app.qryptive.ai
+  loginPath: /auth/login
+  dashboardPath: /
+
+staging:
+  name: Staging
+  baseUrl: https://app.qryptive.ai
+  loginPath: /auth/login
+  dashboardPath: /
+
+production:
+  name: Production
+  baseUrl: https://app.qryptive.ai
+  loginPath: /auth/login
+  dashboardPath: /
