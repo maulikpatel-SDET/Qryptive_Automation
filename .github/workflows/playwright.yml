@@ -1,8 +1,8 @@
 name: Playwright Tests
 
-# Title shown in the Actions list, e.g. "main | qa | dashboard | by maulik"
+# Title shown in the Actions list, e.g. "main | qa | by maulik"
 # (the branch is picked in the "Use workflow from" dropdown of the Run workflow form)
-run-name: ${{ github.event_name == 'workflow_dispatch' && format('{0} | {1} | {2} | by {3}', github.ref_name, inputs.environment, inputs.suite, github.actor) || format('{0} | qa | all | {1}', github.head_ref || github.ref_name, github.event_name) }}
+run-name: ${{ format('{0} | {1} | by {2}', github.head_ref || github.ref_name, inputs.environment || 'qa', github.actor) }}
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main]
 
-  # Manual run: Actions tab > Playwright Tests > "Run workflow" shows these fields
+  # Manual run: Actions tab > Playwright Tests > "Run workflow"
   workflow_dispatch:
     inputs:
       environment:
@@ -18,56 +18,6 @@ on:
         type: choice
         options: [qa, staging, production]
         default: qa
-
-      suite:
-        description: 'Which test cases to run'
-        type: choice
-        options:
-          - all              # every test
-          - login            # tests/LoginTest.spec.ts (TC01-TC09)
-          - login-page       # @loginpage - login page checks, no email sent
-          - dashboard        # @dashboard - TC10-TC13 (logs in first)
-          - magic-login      # @magic - TC01 only
-        default: all
-
-      tag:
-        description: 'Extra tag filter (optional), e.g. @session or TC10. Empty = no filter'
-        type: string
-        required: false
-        default: ''
-
-      skip_faildemo:
-        description: 'Skip TC14 (the test that fails on purpose)'
-        type: boolean
-        default: true
-
-      retries:
-        description: 'Re-run a failed test this many times'
-        type: choice
-        options: ['0', '1', '2']
-        default: '0'
-
-      send_email:
-        description: 'Send the report email after the run'
-        type: boolean
-        default: true
-
-      report_to:
-        description: 'Report email recipient(s), comma separated. Empty = REPORT_TO secret'
-        type: string
-        required: false
-        default: ''
-
-      save_to_db:
-        description: 'Save test results to PostgreSQL'
-        type: boolean
-        default: true
-
-      magic_link:
-        description: 'Magic link for TC02 @direct (optional - visible in the run details)'
-        type: string
-        required: false
-        default: ''
 
 # Only one run at a time - all runs share the same mailbox / login account
 concurrency:
@@ -98,12 +48,8 @@ jobs:
 
     # Same values as the local .env file. Secrets come from
     # GitHub > Settings > Secrets and variables > Actions.
-    # On push / pull_request the inputs are empty, so the defaults after || are used.
     env:
       ENV: ${{ inputs.environment || 'qa' }}
-      SUITE: ${{ inputs.suite || 'all' }}
-      TAG: ${{ inputs.tag }}
-      SKIP_FAILDEMO: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_faildemo }}
       HEADLESS: 'true'
       CI: 'true'
 
@@ -112,11 +58,11 @@ jobs:
       MAIL_HOST: ${{ vars.MAIL_HOST || 'imap.gmail.com' }}
       MAIL_USER: ${{ secrets.MAIL_USER }}
       MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-      MAGIC_LINK: ${{ inputs.magic_link }}
+      MAGIC_LINK: ''
 
       # Report email
-      REPORT_TO: ${{ inputs.report_to || secrets.REPORT_TO }}
-      SEND_REPORT_EMAIL: ${{ github.event_name != 'workflow_dispatch' || inputs.send_email }}
+      REPORT_TO: ${{ secrets.REPORT_TO }}
+      SEND_REPORT_EMAIL: 'true'
 
       # PostgreSQL (defaults = the service container above)
       DB_HOST: ${{ secrets.DB_HOST || 'localhost' }}
@@ -124,14 +70,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME || 'Qryptive' }}
       DB_USER: ${{ secrets.DB_USER || 'postgres' }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'postgres' }}
-      SAVE_RESULTS_TO_DB: ${{ github.event_name != 'workflow_dispatch' || inputs.save_to_db }}
+      SAVE_RESULTS_TO_DB: 'true'
 
       # Project + artifacts
       PROJECT_KEY: QRYPTIVE
       PROJECT_NAME: Qryptive
       ARTIFACT_DIR: artifacts
       DB_POOL_MAX: '10'
-      RETRIES: ${{ inputs.retries || '0' }}
+      RETRIES: '0'
 
     steps:
       - name: Show run settings
@@ -143,13 +89,6 @@ jobs:
           echo "| Commit | ${GITHUB_SHA::7} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Started by | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Environment | $ENV |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Suite | $SUITE |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Extra tag | ${TAG:-none} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Skip TC14 faildemo | $SKIP_FAILDEMO |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Retries | $RETRIES |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Send report email | $SEND_REPORT_EMAIL |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Save to DB | $SAVE_RESULTS_TO_DB |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Magic link given | $([ -n "$MAGIC_LINK" ] && echo yes || echo no) |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -169,38 +108,12 @@ jobs:
       # Locally auth/session-<env>.json already exists. On GitHub it does not,
       # so log in once first to create it - otherwise the dashboard tests are skipped.
       # Only the "list" reporter here: no DB row, no email, no HTML report.
-      # Not needed for suites that do not use the saved login.
       - name: Create login session (TC01)
-        if: env.SUITE == 'all' || env.SUITE == 'dashboard'
         run: npx playwright test --grep "@magic" --reporter=list
 
-      - name: Run tests
-        run: |
-          ARGS=()
-
-          case "$SUITE" in
-            all)         ;;
-            login)       ARGS+=(tests/LoginTest.spec.ts) ;;
-            login-page)  ARGS+=(--grep "@loginpage") ;;
-            dashboard)   ARGS+=(--grep "@dashboard") ;;
-            magic-login) ARGS+=(--grep "@magic") ;;
-            *) echo "Unknown suite: $SUITE"; exit 1 ;;
-          esac
-
-          # Extra tag: a second --grep means "match either", so combine with the suite
-          # filter by running only the tag inside the chosen file/suite.
-          if [ -n "$TAG" ]; then
-            if [ "$SUITE" = "all" ] || [ "$SUITE" = "login" ]; then
-              ARGS+=(--grep "$TAG")
-            else
-              echo "::warning::Extra tag '$TAG' is ignored when suite is '$SUITE'. Use suite 'all' with a tag."
-            fi
-          fi
-
-          if [ "$SKIP_FAILDEMO" = "true" ]; then ARGS+=(--grep-invert "@faildemo"); fi
-
-          echo "Running: npx playwright test ${ARGS[*]}"
-          npx playwright test "${ARGS[@]}"
+      # All tests, except TC14 which fails on purpose
+      - name: Run all tests
+        run: npx playwright test --grep-invert "@faildemo"
 
       - name: Upload HTML report
         if: always()
