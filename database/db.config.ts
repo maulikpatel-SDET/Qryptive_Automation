@@ -14,6 +14,7 @@ export interface DbConfig {
   user: string;
   password: string;
   max: number; // connection pool size
+  ssl: boolean; // DB_SSL=true for cloud databases (Neon, Supabase, RDS)
 }
 
 export function getDbConfig(): DbConfig {
@@ -29,6 +30,7 @@ export function getDbConfig(): DbConfig {
     user: process.env.DB_USER!,
     password: process.env.DB_PASSWORD!,
     max: Number(process.env.DB_POOL_MAX ?? 10),
+    ssl: process.env.DB_SSL === 'true',
   };
 }
 

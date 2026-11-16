@@ -70,6 +70,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME || 'Qryptive' }}
       DB_USER: ${{ secrets.DB_USER || 'postgres' }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'postgres' }}
+      DB_SSL: ${{ secrets.DB_HOST && 'true' || 'false' }} # Neon needs SSL; the local service container does not
       SAVE_RESULTS_TO_DB: 'true'
 
       # Project + artifacts
