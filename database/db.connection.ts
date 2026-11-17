@@ -69,9 +69,25 @@ export async function withTransaction<T>(work: (client: PoolClient) => Promise<T
   }
 }
 
-/** Connects to the default "postgres" database and creates DB_NAME if it is missing. */
+/**
+ * Creates DB_NAME if it is missing.
+ * First tries DB_NAME itself - if that works, nothing to do (cloud databases like Neon
+ * may not have a "postgres" database). Only when DB_NAME does not exist (error 3D000)
+ * it connects to the default "postgres" database and creates it.
+ */
 async function createDatabaseIfMissing(): Promise<void> {
   const { max: _max, ...config } = getDbConfig();
+
+  const probe = new Client({ ...config, connectionTimeoutMillis: 10_000 });
+  try {
+    await probe.connect();
+    await probe.end();
+    return;
+  } catch (error) {
+    await probe.end().catch(() => {});
+    if ((error as { code?: string }).code !== '3D000') throw error;
+  }
+
   const client = new Client({ ...config, database: 'postgres', connectionTimeoutMillis: 10_000 });
   await client.connect();
   try {
