@@ -18,6 +18,14 @@ on:
         type: choice
         options: [qa, staging, production]
         default: qa
+      tests:
+        description: 'Tests to run: a tag like @scanresults, @scans, @reposcan (empty = all tests)'
+        type: string
+        default: ''
+      scan_results_repo:
+        description: '@scanresults only: existing repo to check, e.g. owner/qx-scan-e2e-20261117095923 (empty = create and scan a new one first)'
+        type: string
+        default: ''
 
 # Only one run at a time - all runs share the same mailbox / login account
 concurrency:
@@ -27,7 +35,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     # PostgreSQL for test results (fresh for every run).
     # If you add DB_HOST etc. as secrets, your own database is used instead.
@@ -79,6 +87,16 @@ jobs:
       DB_POOL_MAX: '10'
       RETRIES: '0'
 
+      # GitHub repo scan test (@reposcan) - skipped when these are not set
+      SCAN_GITHUB_TOKEN: ${{ secrets.SCAN_GITHUB_TOKEN }}
+      SCAN_GITHUB_OWNER: ${{ vars.SCAN_GITHUB_OWNER || 'maulikpatel-SDET' }}
+      PQC_API_KEY: ${{ secrets.PQC_API_KEY }}
+      SCAN_REPO_ZIP: test-data/scan-repo.zip
+      # Repo checked by the Last Scan tests. Empty = github-repo-scan.spec.ts runs first in this
+      # same job, creates + scans a repo and saves its name for them (test-data/last-scanned-repo.json).
+      SCAN_RESULTS_REPO: ${{ inputs.scan_results_repo }}
+      TEST_GREP: ${{ inputs.tests }}
+
     steps:
       - name: Show run settings
         run: |
@@ -89,6 +107,8 @@ jobs:
           echo "| Commit | ${GITHUB_SHA::7} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Started by | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Environment | $ENV |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tests | ${TEST_GREP:-all} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Last Scan repo | ${SCAN_RESULTS_REPO:-new repo created in this run} |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -111,9 +131,21 @@ jobs:
       - name: Create login session (TC01)
         run: npx playwright test --grep "@magic" --reporter=list
 
-      # All tests, except TC14 which fails on purpose
-      - name: Run all tests
-        run: npx playwright test --grep-invert "@faildemo"
+      # The tests picked in the "tests" input, or all tests except TC14 (fails on purpose)
+      - name: Run tests
+        run: |
+          if [ -n "$TEST_GREP" ]; then
+            npx playwright test --grep "$TEST_GREP"
+          else
+            npx playwright test --grep-invert "@faildemo"
+          fi
+
+      - name: Show which repo the Last Scan tests checked
+        if: always()
+        run: |
+          if [ -f test-data/last-scanned-repo.json ]; then
+            echo "**Repo created and scanned in this run:** \`$(node -p "require('./test-data/last-scanned-repo.json').fullName")\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload HTML report
         if: always()

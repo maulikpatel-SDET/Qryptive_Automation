@@ -7,6 +7,9 @@
     "test:qa": "ENV=qa playwright test",
     "test:staging": "ENV=staging playwright test",
     "test:production": "ENV=production playwright test",
+    "test:auth": "playwright test tests/auth",
+    "test:dashboard": "playwright test tests/dashboard",
+    "test:sources": "playwright test tests/sources",
     "test:failed": "playwright test --last-failed",
     "report": "playwright show-report reports",
     "db": "tsx database/setup.ts",
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
+    "@types/libsodium-wrappers": "^0.7.14",
     "@types/mailparser": "^3.9.0",
     "@types/node": "^26.6.6",
     "@types/nodemailer": "^8.0.2",
@@ -29,6 +33,7 @@
   "dependencies": {
     "dotenv": "^18.0.10",
     "imapflow": "^2.11.0",
+    "libsodium-wrappers": "^0.7.15",
     "mailparser": "^3.14.3",
     "nodemailer": "^10.5.0",
     "pg": "^8.23.1",

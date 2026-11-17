@@ -64,3 +64,6 @@ Thumbs.db
 coverage/
 .cache/
 *.tmp
+
+# Last repo created by the scan test (written by tests/sources/github-repo-scan.spec.ts)
+test-data/last-scanned-repo.json
