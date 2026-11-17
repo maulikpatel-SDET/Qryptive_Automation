@@ -1,12 +1,12 @@
-import { test, expect } from '../fixtures/base.fixture';
-import { AuthManager } from '../auth/AuthManager';
-import { MailUtils } from '../utils/MailUtils';
-import { getEnvVar } from '../utils/Utils';
+import { test, expect } from '../../fixtures/base.fixture';
+import { AuthManager } from '../../auth/AuthManager';
+import { MailUtils } from '../../utils/MailUtils';
+import { getEnvVar } from '../../utils/Utils';
 
-test.describe('Qryptive Login', () => {
+test.describe('Login - Sign in with a magic link', () => {
   // ---------------- Login with magic link ----------------
 
-  test('TC01 - Magic link login @magic', async ({ loginPage, config, context }) => {
+  test('TC01 - User logs in with the magic link sent by email @magic', async ({ loginPage, config, context }) => {
     const email = getEnvVar('LOGIN_EMAIL');
     getEnvVar('MAIL_PASSWORD'); // stop early if the mailbox password is not set in .env
 
@@ -26,7 +26,7 @@ test.describe('Qryptive Login', () => {
     await AuthManager.saveSession(context); // used by the session tests
   });
 
-  test('TC02 - Direct magic link login @direct', async ({ loginPage, context }) => {
+  test('TC02 - User logs in by opening a magic link directly @direct', async ({ loginPage, context }) => {
     const magicLink = process.env.MAGIC_LINK;
     test.skip(!magicLink, 'No MAGIC_LINK given');
 
@@ -45,7 +45,7 @@ test.describe('Qryptive Login', () => {
       test.skip(!AuthManager.hasSession(), 'No saved session - run TC01 or TC02 first');
     });
 
-    test('TC03 - Existing session login @session', async ({ loginPage }) => {
+    test('TC03 - Logged-in user stays logged in when opening the app again @session', async ({ loginPage }) => {
       await loginPage.openApp();
       await loginPage.verifyLoggedIn();
       await loginPage.openDashboard();
@@ -55,18 +55,18 @@ test.describe('Qryptive Login', () => {
 
   // ---------------- Login page checks (no email is sent) ----------------
 
-  test('TC04 - Login page shows all elements @loginpage', async ({ loginPage }) => {
+  test('TC04 - Login page shows the email box, Send Login Link button and Sign up link @loginpage', async ({ loginPage }) => {
     await loginPage.openLoginPage();
     await loginPage.verifyLoginPageElements();
   });
 
-  test('TC05 - Empty email is not accepted @loginpage', async ({ loginPage }) => {
+  test('TC05 - Login is blocked when the email is empty @loginpage', async ({ loginPage }) => {
     await loginPage.openLoginPage();
     await loginPage.clickSendMagicLink(); // email field left empty
     await loginPage.verifyEmailIsRejected();
   });
 
-  test('TC06 - Invalid email format is not accepted @loginpage', async ({ loginPage }) => {
+  test('TC06 - Login is blocked when the email format is wrong @loginpage', async ({ loginPage }) => {
     await loginPage.openLoginPage();
     await loginPage.enterEmail('invalid-email');
     await loginPage.clickSendMagicLink();
@@ -79,12 +79,12 @@ test.describe('Qryptive Login', () => {
     await loginPage.verifySignUpPage();
   });
 
-  test('TC08 - Invalid magic link shows an error @loginpage', async ({ loginPage, config }) => {
+  test('TC08 - An invalid or expired login link shows an error message @loginpage', async ({ loginPage, config }) => {
     await loginPage.openMagicLink(config.baseUrl + '/auth/verify?token=invalid-test-token');
     await loginPage.verifyInvalidLinkMessage();
   });
 
-  test('TC09 - Logged-out user cannot open the dashboard @loginpage', async ({ loginPage }) => {
+  test('TC09 - Logged-out user is sent away from the dashboard @loginpage', async ({ loginPage }) => {
     await loginPage.openDashboard();
     await loginPage.verifyRedirectedToLanding();
   });

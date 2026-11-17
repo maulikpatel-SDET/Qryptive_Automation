@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import type { EnvConfig } from '../utils/ConfigUtils';
-import { Logger } from '../utils/Logger';
+import type { EnvConfig } from '../../utils/ConfigUtils';
+import { Logger } from '../../utils/Logger';
 
 /**
  * Page Object for the left sidebar menu shown after login.

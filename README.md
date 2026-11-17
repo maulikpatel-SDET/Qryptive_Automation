@@ -19,13 +19,13 @@ Results are saved to **PostgreSQL**, emailed as a report, and the suite runs on 
     └─ DatabaseReporter: connect DB → run migrations → create test run
         │
         ▼
- 3. Test file (tests/*.spec.ts)
+ 3. Test file (tests/<module>/*.spec.ts)
     └─ imports `test` from fixtures/base.fixture.ts
         │
         ▼
  4. Fixtures create ready objects for each test
     ├─ config         (selected environment)
-    └─ page objects   (pages/*.ts)
+    └─ page objects   (pages/<module>/*.ts)
         │
         ▼
  5. Page objects drive the browser
@@ -66,12 +66,27 @@ qryptive_automation/
 ├── config/environment.yaml            qa / staging / production URLs
 ├── database/                          PostgreSQL reporting layer (see database/README.md)
 ├── fixtures/base.fixture.ts           custom Playwright fixtures
-├── pages/                             page objects
-├── tests/                             spec files
+├── pages/                             page objects, one folder per module
+│   ├── auth/LoginPage.ts
+│   ├── dashboard/DashboardPage.ts
+│   └── sources/CodeSourcesPage.ts, RepositoriesPage.ts, ScansPage.ts
+├── tests/                             spec files, one folder per module
+│   ├── auth/login.spec.ts                   TC01–TC09, TC14
+│   ├── dashboard/sidebar-navigation.spec.ts TC10–TC13
+│   ├── sources/github-repo-scan.spec.ts     TC15–TC18, TC25 (create, scan, delete repo)
+│   ├── sources/repositories-last-scan.spec.ts TC19–TC24 (Last Scan results vs expected)
+│   └── sources/scans.spec.ts                TC26–TC34 (Scan history page regression)
+├── test-data/
+│   ├── scan-repo.zip                   sample code pushed to GitHub by the repo scan test
+│   └── scan-repo.expected-findings.csv expected scan results for that code (edit by hand)
 ├── utils/
 │   ├── ConfigUtils.ts                 reads environment.yaml, selects the environment
 │   ├── MailUtils.ts                   reads the inbox (IMAP) and extracts the magic link
 │   ├── WaitUtils.ts                   sleep / waitUntil polling helpers
+│   ├── GitHubApi.ts                   GitHub REST helper (repo, push, secret, workflow run)
+│   ├── ScanComparator.ts              compares expected vs actual scan findings
+│   ├── CsvUtils.ts                    read / write CSV files
+│   ├── ScanRepoStore.ts               remembers the last repo created by the scan test
 │   ├── Logger.ts                      console + logs/execution.log
 │   ├── EmailReporter.ts               custom reporter that emails the result
 │   └── Utils.ts                       small helpers (env values, console input)
@@ -125,17 +140,30 @@ Secrets (`LOGIN_EMAIL`, `MAIL_USER`, `MAIL_PASSWORD`, `REPORT_TO`, optional `DB_
 
 ## Adding a New Test
 
-1. **Page object** — create `pages/NewPage.ts` with locators and actions.
+Naming rules:
+
+| Item | Rule | Example |
+|---|---|---|
+| Folder | Module in the left menu, lower case | `tests/sources/`, `pages/sources/` |
+| Spec file | Feature in kebab-case + `.spec.ts` | `github-repo-scan.spec.ts` |
+| Page object | PascalCase + `Page.ts` | `CodeSourcesPage.ts` |
+| `describe` | `<Module> - <feature in plain words>` | `Sources - Connect and scan a GitHub repository` |
+| Test title | `TCxx - <who> <does what> <expected result> @tag` — readable by a non-technical person | `TC17 - Connected repository is scanned and shows as Active @reposcan` |
+| Steps | `test.step('<plain-English action>')` | `Step 1 of 2 - Add the Qryptive API key to the repository as a secret` |
+
+Keep the `TCxx` number when renaming a test: the database links the history of a test to that number.
+
+1. **Page object** — create `pages/<module>/NewPage.ts` with locators and actions.
 2. **Fixture** — register it in `fixtures/base.fixture.ts`:
    ```ts
    newPage: async ({ page, config }, use) => {
      await use(new NewPage(page, config));
    },
    ```
-3. **Spec** — create `tests/NewTest.spec.ts`:
+3. **Spec** — create `tests/<module>/new-feature.spec.ts`:
    ```ts
-   import { test } from '../fixtures/base.fixture';
-   import { AuthManager } from '../auth/AuthManager';
+   import { test } from '../../fixtures/base.fixture';
+   import { AuthManager } from '../../auth/AuthManager';
 
    test.describe('New feature', () => {
      test.use({ storageState: AuthManager.sessionFile() }); // only if login is needed
@@ -147,6 +175,34 @@ Secrets (`LOGIN_EMAIL`, `MAIL_USER`, `MAIL_PASSWORD`, `REPORT_TO`, optional `DB_
    });
    ```
 4. Add a `@tag` to the title so the test can be run alone with `--grep @tag`.
+
+## Scan Accuracy Tests (TC19–TC24)
+
+`tests/sources/repositories-last-scan.spec.ts` (tag `@scanresults`) does not create anything.
+It checks the repo that `github-repo-scan.spec.ts` created and saved in the last run
+(`test-data/last-scanned-repo.json`), or `SCAN_RESULTS_REPO` from `.env`. The repo stays on the
+Repositories page after it is deleted, so the check still works after the cleanup.
+
+If no repo is saved yet (first run, new machine, CI), Playwright runs `github-repo-scan.spec.ts`
+first automatically (project `scan-results` depends on project `repo-scan` in `playwright.config.ts`),
+so running only `--grep @scanresults` never fails for a missing repo. Add `--no-deps` to skip that.
+
+Repositories > **Last Scan** is compared with
+`test-data/scan-repo.expected-findings.csv` (one row per finding Qryptive should report):
+
+| Column | Meaning |
+|---|---|
+| Type | `Crypto` (code), `Dependency` (pom.xml / package.json / requirements.txt) or `Asset` (Asset Inventory) |
+| Category | Group on the Findings tab, e.g. `Digital Signatures`, `Key Generation`, `Hashing`, `Keys`, `Tokens` |
+| Algorithm | Name shown by Qryptive (`ECC` and `ECDSA` count as the same) |
+| Status | `vulnerable`, `safe`, `unknown` — or `not-expected` for something that must NOT be reported |
+| File / Line | Where it is in the code (Line empty for dependencies) |
+| Also Accept Lines | Other lines that are also correct, e.g. a statement over 2 lines (`9;10`) |
+| Known Issue | Known Qryptive problem: still compared and listed in the report, but does not fail the test |
+
+Each check attaches an expected-vs-actual CSV to the HTML report (OK / MISSING / WRONG LINE /
+WRONG STATUS / WRONG CATEGORY / FALSE POSITIVE / EXTRA). When a known issue gets fixed, the report
+says so — then clear its **Known Issue** cell. When the sample code changes, update the CSV.
 
 ## Setup (one time)
 
@@ -166,6 +222,7 @@ ENV=qa npx playwright test             # or: npm run test:qa
 ENV=staging npx playwright test        # or: npm run test:staging
 ENV=production npx playwright test     # or: npm run test:production
 npx playwright test --grep @tag        # run tests with a tag
+npm run test:auth                      # one module: test:auth / test:dashboard / test:sources
 npx playwright test --last-failed      # re-run failed tests
 HEADLESS=true npx playwright test      # hide the browser
 RETRIES=1 npx playwright test          # retry failures (saved as separate attempts)
@@ -184,6 +241,14 @@ npm run report                         # open the HTML report
 | `SAVE_RESULTS_TO_DB` | `false` runs without saving to the database |
 | `ARTIFACT_DIR` | Where screenshots / traces / videos are stored |
 | `RETRIES` | Number of retries for failed tests |
+| `SCAN_GITHUB_TOKEN` | GitHub classic token (scopes `repo`, `workflow`, `delete_repo`) for the repo scan test |
+| `SCAN_GITHUB_OWNER` | GitHub user / organization where the temporary test repo is created |
+| `PQC_API_KEY` | Qryptive API key, added as a secret to the test repo |
+| `SCAN_REPO_ZIP` | Zip with the code to scan (default `test-data/scan-repo.zip`) |
+| `SCAN_EXPECTED_CSV` | Expected scan results (default `test-data/scan-repo.expected-findings.csv`) |
+| `SCAN_RESULTS_REPO` | Repo checked by the Last Scan tests (default: the last repo created by the scan test) |
+| `SCAN_KEEP_REPO` | `true` keeps the test repo in Qryptive and on GitHub after the run |
+| `SCAN_TIMEOUT_MIN` / `SCAN_MIN_FINDINGS` | Max wait for the GitHub scan (15) / minimum findings expected (1) |
 
 ## Database Commands
 
