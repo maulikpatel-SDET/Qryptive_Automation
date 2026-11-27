@@ -162,6 +162,9 @@ export class LoginPage {
 
   /** Logged in = we are no longer on the login page. */
   async verifyLoggedIn(): Promise<void> {
+    // An old or already used link opens "Invalid or expired magic link" - fail clearly here.
+    await expect(this.dashboardMenuItem.or(this.invalidLinkMessage).first()).toBeVisible({ timeout: 15_000 });
+    await expect(this.invalidLinkMessage, 'The magic link is invalid, expired or already used').toBeHidden();
     await expect(this.page).not.toHaveURL(new RegExp(this.config.loginPath));
     await expect(this.emailInput).toBeHidden();
     Logger.info('User is logged in');

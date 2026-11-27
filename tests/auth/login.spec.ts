@@ -14,11 +14,11 @@ test.describe('Login - Sign in with a magic link', () => {
     await loginPage.openLoginPage();
     await loginPage.enterEmail(email);
 
-    const sentTime = new Date();
+    const lastEmailUid = await MailUtils.getNewestUid(); // only an email newer than this is used
     await loginPage.clickContinue();
     await loginPage.verifyConfirmationMessage();
 
-    const magicLink = await MailUtils.waitForMagicLink(sentTime, config.baseUrl);
+    const magicLink = await MailUtils.waitForMagicLink(lastEmailUid, config.baseUrl);
 
     await loginPage.openMagicLink(magicLink);
     await loginPage.verifyLoggedIn();
@@ -39,10 +39,10 @@ test.describe('Login - Sign in with a magic link', () => {
         const requestPage = new LoginPage(await requestContext.newPage(), config);
         await requestPage.openLoginPage();
         await requestPage.enterEmail(email);
-        const sentTime = new Date();
+        const lastEmailUid = await MailUtils.getNewestUid(); // only an email newer than this is used
         await requestPage.clickContinue();
         await requestPage.verifyConfirmationMessage();
-        magicLink = await MailUtils.waitForMagicLink(sentTime, config.baseUrl);
+        magicLink = await MailUtils.waitForMagicLink(lastEmailUid, config.baseUrl);
       } finally {
         await requestContext.close();
       }
