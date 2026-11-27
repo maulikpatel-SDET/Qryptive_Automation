@@ -139,7 +139,8 @@ test.describe('Scans - Scan history page', () => {
       const rows = await scansPage.getAllRows();
       for (const [i, row] of rows.entries()) {
         const where = `row ${i + 1} (${row.date})`;
-        expect.soft(row.repository, `${where}: repository`).toMatch(/^[\w.-]+\/[\w.-]+$/);
+        // "owner/repo" (GitHub), "group/sub/project" (GitLab) or a plain name like "ai-dc" (other sources)
+        expect.soft(row.repository, `${where}: repository`).toMatch(/^[\w.-]+(\/[\w.-]+)*$/);
         expect.soft(row.type, `${where}: type`).not.toBe('');
         expect.soft(row.status, `${where}: status`).not.toBe('');
         expect.soft(row.files, `${where}: files is a number`).not.toBeNaN();

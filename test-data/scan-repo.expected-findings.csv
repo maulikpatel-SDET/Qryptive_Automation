@@ -51,7 +51,7 @@ Crypto,Hashing,SHA-256,safe,ts/webcrypto.ts,5,,RSA-OAEP hash SHA-256,"Not detect
 Crypto,Hashing,MD5,vulnerable,python/django_app/settings.py,5,,Django MD5PasswordHasher,"Not detected: Django MD5PasswordHasher"
 Crypto,Symmetric Encryption,AES,vulnerable,java/src/main/java/com/qx/Ciphers.java,9,,AES/ECB - ECB mode is weak,"Shown as PQC Safe: AES in ECB mode is weak"
 Crypto,Symmetric Encryption,3DES,vulnerable,java/src/main/java/com/qx/Ciphers.java,10,,DESede,
-Crypto,Symmetric Encryption,AES,safe,python/algorithms/ciphers.py,7,,AES-256-GCM,
+Crypto,Symmetric Encryption,AES,safe,python/algorithms/ciphers.py,7,,AES-256-GCM,"Shown as Quantum Vulnerable: AES-256-GCM is quantum safe (since Nov 27, 2026)"
 Crypto,Symmetric Encryption,AES,vulnerable,python/algorithms/ciphers.py,8,,AES-ECB - ECB mode is weak,"Shown as PQC Safe: AES in ECB mode is weak"
 Crypto,Symmetric Encryption,3DES,vulnerable,python/algorithms/ciphers.py,9,,TripleDES,
 Crypto,Symmetric Encryption,ChaCha20,safe,python/algorithms/ciphers.py,10,,ChaCha20Poly1305,

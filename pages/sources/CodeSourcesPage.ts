@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import type { EnvConfig } from '../../utils/ConfigUtils';
 import { Logger } from '../../utils/Logger';
+import { cellByHeader } from '../../utils/TableUtils';
 
 /** Options of the "Enroll a repository" form (unset = keep the default). */
 export interface EnrollOptions {
@@ -249,7 +250,7 @@ export class CodeSourcesPage {
     await expect(async () => {
       await this.page.reload();
       await this.waitForTableLoaded();
-      const statusCell = this.repoRow(fullName).locator('td').nth(1);
+      const statusCell = await cellByHeader(this.page, this.repoRow(fullName), 'Status');
       const current = (await statusCell.innerText({ timeout: 10_000 })).split('\n')[0];
       Logger.info(`Current status of ${fullName}: ${current}`);
       expect(current.toLowerCase()).toBe(status.toLowerCase());
@@ -260,10 +261,10 @@ export class CodeSourcesPage {
   async verifyRepoScanned(fullName: string): Promise<number> {
     const row = this.repoRow(fullName);
     await expect(row).toHaveCount(1);
-    const lastScan = row.locator('td').nth(2);
+    const lastScan = await cellByHeader(this.page, row, 'Last scan');
     await expect(lastScan).not.toHaveText('—');
     await expect(lastScan).toHaveText(/ago|just now/i);
-    const findings = Number((await row.locator('td').nth(3).innerText()).trim());
+    const findings = Number((await (await cellByHeader(this.page, row, 'Findings')).innerText()).trim());
     expect(Number.isNaN(findings), 'Findings is a number').toBe(false);
     Logger.info(`${fullName}: last scan ${await lastScan.innerText()}, findings ${findings}`);
     return findings;
