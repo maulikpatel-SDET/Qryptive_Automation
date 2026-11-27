@@ -10,7 +10,10 @@ export class LoginPage {
   // ---------- Locators ----------
   // TODO: if the real Qryptive page uses other text, change it here.
   readonly emailInput: Locator;
-  readonly sendMagicLinkButton: Locator;
+  readonly continueButton: Locator;
+  readonly googleSignInButton: Locator;
+  readonly microsoftSignInButton: Locator;
+  readonly brandLogo: Locator;
   readonly confirmationMessage: Locator;
   readonly loginErrorMessage: Locator;
   readonly welcomeHeading: Locator;
@@ -25,15 +28,18 @@ export class LoginPage {
   readonly dashboardMenuItem: Locator;
   readonly pqReadinessCard: Locator;
   readonly openItemsCard: Locator;
-  readonly complianceCard: Locator;
+  readonly policiesPassingCard: Locator;
 
   constructor(
     private readonly page: Page,
     private readonly config: EnvConfig,
   ) {
     this.emailInput = page.locator('#email');
-    this.sendMagicLinkButton = page.locator('button.auth-button[type="submit"]'); // "Send Login Link"
-    // TODO: confirm the exact text shown after clicking "Send Login Link"
+    this.continueButton = page.getByRole('button', { name: 'Continue', exact: true }); // submit button of the email form
+    this.googleSignInButton = page.getByRole('button', { name: 'Sign in with Google' });
+    this.microsoftSignInButton = page.getByRole('button', { name: 'Sign in with Microsoft' });
+    this.brandLogo = page.getByTestId('brand-wordmark');
+    // TODO: confirm the exact text shown after clicking "Continue"
     this.confirmationMessage = page.getByText(/check your (email|inbox)|link (has been |was )?sent|we('ve| have) sent/i);
     // Error shown under the button, e.g. "Rate limit exceeded. Please try again later."
     this.loginErrorMessage = page.getByText(/rate limit|try again later|error|invalid|failed/i);
@@ -47,10 +53,10 @@ export class LoginPage {
     this.dashboardSubtitle = page.getByText(/quantum-readiness posture at a glance/i);
     this.dashboardMenuItem = page.getByRole('link', { name: 'Dashboard', exact: true });
     // Summary cards: the texts also appear in a help panel, so match the card itself
-    // (the image / link whose name starts with the card title, e.g. "Open items 7893 ...").
+    // (the image / link whose name starts with the card title, e.g. "Open items 11254 ...").
     this.pqReadinessCard = page.getByRole('img', { name: /^PQ readiness/ });
     this.openItemsCard = page.getByRole('link', { name: /^Open items/ });
-    this.complianceCard = page.getByRole('link', { name: /^Compliance/ });
+    this.policiesPassingCard = page.getByRole('link', { name: /^Policies passing/ });
   }
 
   // ---------- Actions ----------
@@ -66,7 +72,10 @@ export class LoginPage {
     await expect(this.signInSubtitle).toBeVisible();
     await expect(this.emailInput).toBeVisible();
     await expect(this.emailInput).toHaveAttribute('placeholder', 'your@email.com');
-    await expect(this.sendMagicLinkButton).toHaveText('Send Login Link');
+    await expect(this.continueButton).toBeVisible();
+    await expect(this.googleSignInButton).toBeVisible();
+    await expect(this.microsoftSignInButton).toBeVisible();
+    await expect(this.brandLogo).toBeVisible();
     await expect(this.signUpLink).toBeVisible();
     Logger.info('Login page elements are visible');
   }
@@ -109,13 +118,13 @@ export class LoginPage {
     await this.emailInput.fill(email);
   }
 
-  async clickSendMagicLink(): Promise<void> {
-    Logger.info('Clicking Send Magic Link');
-    await this.sendMagicLinkButton.click();
+  async clickContinue(): Promise<void> {
+    Logger.info('Clicking Continue');
+    await this.continueButton.click();
   }
 
   /**
-   * Wait up to 15 seconds for the result of "Send Login Link":
+   * Wait up to 15 seconds for the result of "Continue":
    * - success message appears -> go to the next step
    * - error message appears (e.g. rate limit) -> stop with that error
    */
@@ -153,6 +162,9 @@ export class LoginPage {
 
   /** Logged in = we are no longer on the login page. */
   async verifyLoggedIn(): Promise<void> {
+    // An old or already used link opens "Invalid or expired magic link" - fail clearly here.
+    await expect(this.dashboardMenuItem.or(this.invalidLinkMessage).first()).toBeVisible({ timeout: 15_000 });
+    await expect(this.invalidLinkMessage, 'The magic link is invalid, expired or already used').toBeHidden();
     await expect(this.page).not.toHaveURL(new RegExp(this.config.loginPath));
     await expect(this.emailInput).toBeHidden();
     Logger.info('User is logged in');
@@ -163,7 +175,7 @@ export class LoginPage {
    * - URL is https://app.qryptive.ai/
    * - "Dashboard" menu item is visible in the left sidebar
    * - Page heading "Command center" and its subtitle are visible
-   * - Summary cards "PQ readiness", "Open items" and "Compliance" are visible
+   * - Summary cards "PQ readiness", "Open items" and "Policies passing" are visible
    */
   async verifyDashboard(): Promise<void> {
     await expect(this.page).toHaveURL(this.config.baseUrl + this.config.dashboardPath);
@@ -172,7 +184,7 @@ export class LoginPage {
     await expect(this.dashboardSubtitle).toBeVisible();
     await expect(this.pqReadinessCard).toBeVisible();
     await expect(this.openItemsCard).toBeVisible();
-    await expect(this.complianceCard).toBeVisible();
+    await expect(this.policiesPassingCard).toBeVisible();
     Logger.info('Dashboard (Command center) is displayed');
   }
 }

@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import type { EnvConfig } from '../../utils/ConfigUtils';
 import { Logger } from '../../utils/Logger';
+import { cellByHeader } from '../../utils/TableUtils';
 
 /** One row of the Repositories table. */
 export interface RepositoryRowData {
@@ -56,14 +57,14 @@ export class RepositoriesPage {
   }
 
   async getRepoRowData(fullName: string): Promise<RepositoryRowData> {
-    const cells = this.repoRow(fullName).locator('td');
-    const text = async (i: number) => (await cells.nth(i).innerText()).trim();
+    const row = this.repoRow(fullName);
+    const text = async (header: string) => (await (await cellByHeader(this.page, row, header)).innerText()).trim();
     return {
-      riskLevel: await text(1),
-      riskScore: await text(2),
-      fips: await text(3),
-      totalScans: Number(await text(4)),
-      lastScanned: (await text(5)).replace(/\s+/g, ' '),
+      riskLevel: await text('Risk Level'),
+      riskScore: await text('Risk Score'),
+      fips: await text('FIPS 140-3'),
+      totalScans: Number(await text('Total Scans')),
+      lastScanned: (await text('Last Scanned')).replace(/\s+/g, ' '),
     };
   }
 

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { BrowserContext } from '@playwright/test';
+import { expect, type BrowserContext } from '@playwright/test';
 import { Logger } from '../utils/Logger';
 
 /**
@@ -14,6 +14,14 @@ export class AuthManager {
   }
 
   static async saveSession(context: BrowserContext): Promise<void> {
+    // The app writes the login token to local storage a moment after the redirect.
+    // Wait for it, otherwise an empty (logged-out) session is saved.
+    await expect
+      .poll(
+        async () => (await context.storageState()).origins.some((o) => o.localStorage.some((i) => i.name === 'accessToken')),
+        { message: 'accessToken was not stored after login', timeout: 15_000 },
+      )
+      .toBe(true);
     await context.storageState({ path: AuthManager.sessionFile() });
     Logger.info('Session saved');
   }
